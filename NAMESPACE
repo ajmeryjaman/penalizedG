@@ -1,0 +1,4 @@
+importFrom("stats", "as.formula", "binomial", "glm", "model.matrix",
+                "predict.glm", "toeplitz")
+
+exportPattern("^[[:alpha:]]+")
