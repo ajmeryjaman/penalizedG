@@ -1,5 +1,51 @@
 {
     "debugBreakpointsState": {
-        "breakpoints": []
+        "breakpoints": [
+            {
+                "id": 11,
+                "path": "~/Library/CloudStorage/GoogleDrive-ajaman@isrt.ac.bd/My Drive/McGill/PhD work/First project/Coding/table_making_complex.R",
+                "line_number": 473,
+                "function_steps": "",
+                "function_name": "toplevel",
+                "state": 1,
+                "editor_state": 1,
+                "editor_line_number": 473,
+                "is_pending_debug_completion": false,
+                "needs_updated_steps": false,
+                "type": 1,
+                "is_package_breakpoint": false,
+                "package_name": ""
+            },
+            {
+                "id": 12,
+                "path": "~/Library/CloudStorage/GoogleDrive-ajaman@isrt.ac.bd/My Drive/McGill/PhD work/First project/Coding/table_making_complex.R",
+                "line_number": 458,
+                "function_steps": "",
+                "function_name": "toplevel",
+                "state": 1,
+                "editor_state": 1,
+                "editor_line_number": 458,
+                "is_pending_debug_completion": false,
+                "needs_updated_steps": false,
+                "type": 1,
+                "is_package_breakpoint": false,
+                "package_name": ""
+            },
+            {
+                "id": 15,
+                "path": "~/Library/CloudStorage/GoogleDrive-ajaman@isrt.ac.bd/My Drive/McGill/Comp B 2022/code_old.R",
+                "line_number": 214,
+                "function_steps": "",
+                "function_name": "toplevel",
+                "state": 1,
+                "editor_state": 1,
+                "editor_line_number": 214,
+                "is_pending_debug_completion": false,
+                "needs_updated_steps": false,
+                "type": 1,
+                "is_package_breakpoint": false,
+                "package_name": ""
+            }
+        ]
     }
 }

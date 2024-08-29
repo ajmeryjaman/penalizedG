@@ -1,8 +1,10 @@
 #' Penalized G-estimation
 #' @description This function performs penalized G-estimation for a given longitudinal data,
 #' a specific working correlation structure and a sequence of tuning parameters, and returns result
-#' under the optimal value (selected by a BIC criterion) of the tuning parameter in the given range.
-#' Currently, the function allows only a continuous outcome and a binary treatment/exposure.
+#' under the optimal value (selected by a double-robust information  criterion) of the tuning parameter in the given range.
+#' Currently, the function allows a continuous outcome and a binary treatment/exposure. The potential
+#' confounders can be time-varying, but must be continuous or binary (i.e., categorical with
+#' two levels).
 #' @param data A data frame containing the variables in longitudinal format.
 #' @param wc.str A character string specifying the working correlation structure. The
 #' following are currently allowed: "independence", "exchangeable", "ar1", and "unstructured".
@@ -13,22 +15,38 @@
 #' treatment-free model.
 #' @param treat.model A single formula object specifying the covariates of the logistic
 #' regression model for the binary treatment.
-#' @param lambda.seq A sequence  values for the tuning parameter.
-#' @param maxitr Maximum number of iterations allowed. The default value is 50.
+#' @param lambda.seq A sequence of values (in decreasing order) for the tuning parameter. Typically,
+#' the first element in this sequence is a lowest positive number such that all the effect modifiers (EMs) are eliminated by the method, while
+#' the last element is a value close to zero for which none of the EMs are eliminated.
+#' @param maxitr Maximum number of iterations allowed. The default value is 100.
+#' @param penalty The penalty type to be used, available options include "SCAD" and "MCP". The default choice is "SCAD".
+#' "SCAD" refers to the Smoothly Clipped Absolute Deviation penalty and "MCP" refers to the Minimax Concave Penalty.
 #'
 #' @return A list containing the following:
-#' \item{estimate}{The vector of parameter estimates. First half corresponds to the blip coefficients and the second half corresponds to the coefficients of the treatment-free model}
+#' \item{estimate}{The vector of parameter estimates. First half corresponds to the blip coefficients
+#' and the second half corresponds to the coefficients of the treatment-free model}
 #' \item{Selected.EMs}{A vector showing which variables are selected as effect modifiers (EMs)}
 #' \item{sigma2.hat}{The estimated variance parameter sigma^2.}
-#' \item{alpha.hat}{ The estimated correlation parameter alpha if the provided structure is either "exchangeable" or "ar1.}
-#' \item{cov.hat.un}{The estimated covariance matrix if the provided structure is "unstructured".}
-#' \item{sandwich.var.psi}{The sandwich variance-covariance matrix of the blip coefficients.}
+#' \item{alpha.hat}{The estimated correlation parameter(s) alpha(s) if the provided structure is either
+#' "exchangeable", "ar1, or "unstructured". For unstructured, the elements of alpha.hat correspond
+#' to the upper triangular portion of working correlation matrix having dimension equal to
+#' the largest cluster size.}
+#' \item{asymp.var.psi}{The sandwich variance-covariance matrix of the blip coefficients. Although, the
+#' function will provided
+#' sandwich variance, the practitional should note that tests or confidence intervals based on this
+#' sandwich estimates are expected to exhibit
+#' inflated type I errors. Development of a valid post-selection inference procedure is currently in
+#' progress, and once done will be available
+#' as output of this function.}
 #' \item{nitr}{The number of iterations at which the estimation converged with the optimal tuning parameter.}
 #' \item{lambda.optimal}{The optimal tuning parameter from the given sequence (lambda.seq).}
-#' \item{data}{The original dataframe same as provided argument}
+#' \item{data}{The original dataframe with an additional column that contains the estimated
+#' propensity scores.}
 #'
-#' @export penalizedG
-#'
+#' @export
+#' 
+#' @importFrom stats model.matrix as.formula binomial glm predict.glm toeplitz
+#' 
 #' @examples
 #' library(mvtnorm)
 #' expit <- function(x) exp(x)/(1+exp(x))
@@ -51,7 +69,7 @@
 #'   # blip model: a * (1+l1+...+l5)
 #'   # noise covariates: x1,...,x10
 #'   beta <- c(0, 1, -1.1, 1.2, 0.75, -0.9, 1.2) # treatment model parameters
-#'   delta <- c(1, 1, 1.5, 1.2, -0.9, 0.8, -1, 1) # treatment-free model parameters
+#'   delta <- c(1, 1, 1.2, 1.2, -0.9, 0.8, -1, 1) # treatment-free model parameters
 #'   psi <- c(1, 1, -1, -0.9, 0.8, 1, 0) # blip parameters
 #'
 #'   # generating two continuous baseline covariates
@@ -104,24 +122,27 @@
 #'   data <- data.frame(id=rep(1:n, times=ni), a=unlist(a), lx.mat, y=round(unlist(y),3))
 #'   return(data)
 #' }
-#'
-#' data.s <- data.gen(n = 200, ni = rep(6, 200), sigma2.e = 1, alpha = 0.8,
+#' # Generate the data
+#' data.s <- data.gen(n = 500, ni = rep(6, 500), sigma2.e = 1, alpha = 0.8,
 #'                    corstr = "exchangeable", autocorr.coef = 0)
 #'
-#' #treatment-free model is misspecified, because we did not include exp(l5) in it
+#' # Treatment-free model is misspecified, because we did not include exp(l5) in it
 #' tf.model <- as.formula(paste("~",paste(c(paste("l",1:6,sep=""), paste("x",1:10,sep="")),
 #'                                                    collapse = "+"), collapse=""))
+#' # Treatment model is correctly specified                                                 
 #' treat.model <- ~l1+l2+l3+l4+l5+l6
-#' p <- length(all.vars(tf.model))+1
-#' maxitr <- 50
-#'
+#' p <- length(model.matrix(tf.model, data=data.s)[1,])
+#' 
+#' # Creating a sequence of tuning parameter values in decreasing order
 #' lam_max <- 1
 #' lam_min <- 0.01*lam_max
 #' lambda.seq <- sort(seq(lam_min,lam_max,(lam_max-lam_min)/99), decreasing=TRUE)
 #'
-#' out <- penalized.G(data = data.s, wc.str = "exchangeable", id.var="id", response.var="y",
+#' # Perfom the penalized G-estimation for all lambda values and get the fit corresponding
+#' # to the optimal lambda chosen by a Doubly Robust Information Criterion (DRIC)
+#' out <- penalizedG(data = data.s, wc.str = "exchangeable", id.var="id", response.var="y",
 #'                    treat.var="a", tf.model=tf.model, treat.model = treat.model,
-#'                    lambda.seq = lambda.seq, maxitr = 50)
+#'                    lambda.seq = lambda.seq, maxitr = 50, penalty = "SCAD")
 #'
 #' names(out)
 #' out$lambda.optimal
@@ -136,20 +157,18 @@
 #'
 #' round(main.effect, 2)
 #' round(effect.modification, 2)
-
-
+#' 
 ## The main function performing penalized G-estimation for a given data, working
 ## correlation structure and a sequence of tuning parameter values
-
-penalized.G <- function(data, wc.str, id.var, response.var, treat.var, tf.model, treat.model,
-         lambda.seq, maxitr = 50){
+penalizedG <- function(data, wc.str, id.var, response.var, treat.var, tf.model, treat.model,
+                        lambda.seq, maxitr = 100, penalty = "SCAD"){
   if(!wc.str %in% c("independence", "exchangeable", "ar1", "unstructured")){
     stop("Working correlation structure must be one among independence,
          exchangeable, ar1, and unstructured\n")
   }
   data.org <- data
   if(any(c(is.na(data.org)))){
-    stop("There can not be any missing values in the data\n")
+    stop("Data can not contain any missing values\n")
   }
 
   names(data)[names(data)==id.var] <- "id"
@@ -160,19 +179,20 @@ penalized.G <- function(data, wc.str, id.var, response.var, treat.var, tf.model,
     stop("The treatment/exposure variable must be binary\n")
   }
 
-  ## Next we calculate the propensity scores
-  treat.mod.formula <- as.formula(paste("a",paste(treat.model,collapse = ""),collapse=""))
+  ## Next we calculate the propensity scores from pooled data
+  treat.mod.formula <- as.formula(paste("a",paste(treat.model, collapse = ""), collapse=""))
   data$E.a <- predict.glm(glm(treat.mod.formula,family=binomial, data=data), type = "response")
+  data.org$E.a <- data$E.a
 
   ##Next we perform penalized G-estimation for a sequence of tuning parameters and
   ##we record if there is any error (i.e., the estimation did not converge)
   out.penG <- lapply(lambda.seq, function(k)
     penG(data=data, wc.str = wc.str, tf.model = tf.model, treat.model = treat.model,
-         lambda = k, maxitr = maxitr))
+         lambda = k, maxitr = maxitr, penalty = penalty))
   errors <- unlist(lapply(out.penG, function(x) x$error))
 
   ##Next we split the data and construct required quantities as a list of length n
-  ## for computing the BIC values
+  ## for computing the values of double-robust information criterion (DRIC)
   dat <- split(data, data$id)
   l.mat <- data.frame(id=data$id, model.matrix(tf.model, data)) # cov+treat history
   l.mat.split <- split(l.mat, l.mat$id)
@@ -184,30 +204,28 @@ penalized.G <- function(data, wc.str, id.var, response.var, treat.var, tf.model,
   E.a <- lapply(1:n, function(i) as.matrix(dat[[i]]$E.a))
   p <- dim(l.mat[,-1])[2] # dimension of psi/delta including intercept
 
-  ###BIC calculation for the tuning parameters for which the estimation converged (i.e., error = 0)
-  bic <- lapply(which(errors == 0), function(k)
-    calcBIC(out.penG[[k]], n, ni, p, y, a, E.a, l, wc.str = wc.str, lambda.seq[k])
+  ###DRIC calculation for the tuning parameters for which the estimation converged (i.e., error = 0)
+  DRIC <- lapply(which(errors == 0), function(k)
+    calcDRIC(out.penG[[k]], n, ni, p, y, a, E.a, l, wc.str = wc.str)
   )
   lambda.no.error <- lambda.seq[which(errors == 0)]
-  lambda.selected <- lambda.no.error[which.min(unlist(bic))]
+  lambda.selected <- lambda.no.error[which.min(unlist(DRIC))]
   res <- out.penG[[which(lambda.seq==lambda.selected)]]
+
   estimate <- res$estimate
   sigma2.hat <- res$phi
-  alpha.hat <- ifelse(wc.str %in% c("exchangeable", "ar1"), res$cov/sigma2.hat, NA)
-  cov.hat.un <- ifelse(wc.str == "unstructured", res$cov, NA)
+  alpha.hat <- ifelse(wc.str %in% c("exchangeable", "ar1", "unstructured"), res$alpha, NA)
   asymp.var.psi <- res$asymp.var.psi
   nitr <- res$nitr
 
-  row.names(estimate) <- c(treat.var, paste(treat.var, "*", all.vars(tf.model), sep=""),
-                           "Intercept", all.vars(tf.model))
-  row.names(asymp.var.psi) <- c(treat.var, paste(treat.var, "*", all.vars(tf.model), sep=""))
-  colnames(asymp.var.psi) <- c(treat.var, paste(treat.var, "*", all.vars(tf.model), sep=""))
-
-  as.formula(paste("a",paste(treat.model,collapse = ""),collapse=""))
-  c(paste("l", 1:6, sep=""), paste("x", 1:10, sep=""))
-  selected.EMs <- all.vars(tf.model)[abs(res$estimate[2:p]) > 0.001]
+  row.names(estimate) <- c(treat.var, paste(treat.var, "*", colnames(l.mat)[-c(1,2)], sep=""),
+                           "Intercept", colnames(l.mat)[-c(1,2)])
+  row.names(asymp.var.psi) <- c(treat.var, paste(treat.var, "*", colnames(l.mat)[-c(1,2)], sep=""))
+  colnames(asymp.var.psi) <- c(treat.var, paste(treat.var, "*", colnames(l.mat)[-c(1,2)], sep=""))
+  all_vars <- names(model.matrix(tf.model, data=data)[1, -1])
+  selected.EMs <- all_vars[abs(res$estimate[2:p]) > 0.001]
 
   return(list(estimate = estimate, selected.EMs = selected.EMs, sigma2.hat = sigma2.hat,
-              alpha.hat = alpha.hat, cov.hat.un = cov.hat.un, sandwich.var.psi = asymp.var.psi,
+              alpha.hat = alpha.hat, asymp.var.psi = asymp.var.psi,
               nitr=nitr, lambda.optimal = lambda.selected, data = data.org))
 }
