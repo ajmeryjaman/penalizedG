@@ -70,9 +70,8 @@ propensity scores.}
 This function performs penalized G-estimation for a given longitudinal data,
 a specific working correlation structure and a sequence of tuning parameters, and returns result
 under the optimal value (selected by a double-robust information  criterion) of the tuning parameter in the given range.
-Currently, the function allows a continuous outcome and a binary treatment/exposure. The potential
-confounders can be time-varying, but must be continuous or binary (i.e., categorical with
-two levels).
+Currently, the function allows a continuous outcome and a binary treatment/exposure. The outcome, the exposure and the potential
+confounders, all can be time-varying.
 }
 \examples{
 library(mvtnorm)
