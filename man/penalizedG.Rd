@@ -71,7 +71,7 @@ This function performs penalized G-estimation for a given longitudinal data,
 a specific working correlation structure and a sequence of tuning parameters, and returns result
 under the optimal value (selected by a double-robust information  criterion) of the tuning parameter in the given range.
 Currently, the function allows a continuous outcome and a binary treatment/exposure. The outcome, the exposure and the potential
-confounders, all can be time-varying.
+confounders, all can be time-varying, but the potential confounders should be continuous or binary.
 }
 \examples{
 library(mvtnorm)
