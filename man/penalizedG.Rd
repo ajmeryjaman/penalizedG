@@ -56,11 +56,9 @@ to the upper triangular portion of working correlation matrix having dimension e
 the largest cluster size.}
 \item{asymp.var.psi}{The sandwich variance-covariance matrix of the blip coefficients. Although, the
 function will provided
-sandwich variance, the practitional should note that tests or confidence intervals based on this
+sandwich variance, a data analyst should note that tests or confidence intervals based on this
 sandwich estimates are expected to exhibit
-inflated type I errors. Development of a valid post-selection inference procedure is currently in
-progress, and once done will be available
-as output of this function.}
+inflated type I errors in finite samples.}
 \item{nitr}{The number of iterations at which the estimation converged with the optimal tuning parameter.}
 \item{lambda.optimal}{The optimal tuning parameter from the given sequence (lambda.seq).}
 \item{data}{The original dataframe with an additional column that contains the estimated
