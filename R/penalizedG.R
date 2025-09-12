@@ -183,9 +183,11 @@ penalizedG <- function(data, wc.str, id.var, response.var, treat.var, tf.model, 
 
   ##Next we perform penalized G-estimation for a sequence of tuning parameters and
   ##we record if there is any error (i.e., the estimation did not converge)
-  out.penG <- lapply(lambda.seq, function(k)
-    penG(data=data, wc.str = wc.str, tf.model = tf.model, treat.model = treat.model,
-         lambda = k, maxitr = maxitr, penalty = penalty))
+  out.penG <- lapply(lambda.seq, function(k){
+    cat("Now running the estimation for lambda =", k, "\n")
+    pen_res <- penG(data=data, wc.str = wc.str, tf.model = tf.model, treat.model = treat.model,
+         lambda = k, maxitr = maxitr, penalty = penalty)
+    return(pen_res)})
   errors <- unlist(lapply(out.penG, function(x) x$error))
 
   ##Next we split the data and construct required quantities as a list of length n
