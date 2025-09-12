@@ -24,7 +24,7 @@
 #' @return A list containing the following:
 #' \item{estimate}{The vector of parameter estimates. First half corresponds to the blip coefficients
 #' and the second half corresponds to the coefficients of the treatment-free model}
-#' \item{Selected.EMs}{A vector showing which variables are selected as effect modifiers (EMs)}
+#' \item{Selected.EMs}{A vector showing variables that are selected as effect modifiers (EMs)}
 #' \item{sigma2.hat}{The estimated variance parameter sigma^2.}
 #' \item{alpha.hat}{The estimated correlation parameter(s) alpha(s) if the provided structure is either
 #' "exchangeable", "ar1, or "unstructured". For unstructured, the elements of alpha.hat correspond
