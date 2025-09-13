@@ -1,4 +1,4 @@
-## Implemention of the method in ["Penalized G-estimation for effect modifier selection in a structural nested mean model for repeated outcomes"](https://academic.oup.com/biometrics/article/81/1/ujae165/7954699)
+## Implemention of the method in ["Penalized G-estimation for effect modifier selection in a structural nested mean model for repeated outcomes"](https://academic.oup.com/biometrics/article/81/1/ujae165/7954699) by Jaman et al. (2025, Biometrics)
 
 The repository contains the following folders:
 
