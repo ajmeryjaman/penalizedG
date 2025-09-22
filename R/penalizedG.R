@@ -24,7 +24,7 @@
 #' @return A list containing the following:
 #' \item{estimate}{The vector of parameter estimates. First half corresponds to the blip coefficients
 #' and the second half corresponds to the coefficients of the treatment-free model}
-#' \item{Selected.EMs}{A vector showing variables that are selected as effect modifiers (EMs)}
+#' \item{Selected.EMs}{A vector showing which variables are selected as effect modifiers (EMs)}
 #' \item{sigma2.hat}{The estimated variance parameter sigma^2.}
 #' \item{alpha.hat}{The estimated correlation parameter(s) alpha(s) if the provided structure is either
 #' "exchangeable", "ar1, or "unstructured". For unstructured, the elements of alpha.hat correspond
@@ -163,35 +163,30 @@ penalizedG <- function(data, wc.str, id.var, response.var, treat.var, tf.model, 
     stop("Working correlation structure must be one among independence,
          exchangeable, ar1, and unstructured\n")
   }
-  data.org <- data
-  if(any(c(is.na(data.org)))){
+  if(any(c(is.na(data)))){
     stop("Data can not contain any missing values\n")
   }
 
-  names(data)[names(data)==id.var] <- "id"
-  names(data)[names(data)==treat.var] <- "a"
-  names(data)[names(data)==response.var] <- "y"
-
-  if(length(levels(as.factor(data$a))) != 2){
+  if(length(levels(as.factor(data[,treat.var]))) != 2){
     stop("The treatment/exposure variable must be binary\n")
   }
-
-  ## Next we calculate the propensity scores from pooled data
-  treat.mod.formula <- as.formula(paste("a",paste(treat.model, collapse = ""), collapse=""))
-  data$E.a <- predict.glm(glm(treat.mod.formula,family=binomial, data=data), type = "response")
-  data.org$E.a <- data$E.a
 
   ##Next we perform penalized G-estimation for a sequence of tuning parameters and
   ##we record if there is any error (i.e., the estimation did not converge)
   out.penG <- lapply(lambda.seq, function(k){
     cat("Now running the estimation for lambda =", k, "\n")
-    pen_res <- penG(data=data, wc.str = wc.str, tf.model = tf.model, treat.model = treat.model,
-         lambda = k, maxitr = maxitr, penalty = penalty)
+    pen_res <- penG(data=data, wc.str = wc.str, id.var=id.var, response.var=response.var,
+                    treat.var=treat.var, tf.model = tf.model, treat.model = treat.model,
+                    lambda = k, maxitr = maxitr, penalty = penalty)
     return(pen_res)})
   errors <- unlist(lapply(out.penG, function(x) x$error))
 
   ##Next we split the data and construct required quantities as a list of length n
   ## for computing the values of double-robust information criterion (DRIC)
+  ## For that we also need the propensity scores
+  treat.mod.formula <- as.formula(paste(treat.var, paste(treat.model, collapse = ""), collapse=""))
+  data$E.a <- predict.glm(glm(treat.mod.formula, family=binomial, data=data), type = "response")
+  
   dat <- split(data, data$id)
   l.mat <- data.frame(id=data$id, model.matrix(tf.model, data)) # cov+treat history
   l.mat.split <- split(l.mat, l.mat$id)
@@ -226,5 +221,5 @@ penalizedG <- function(data, wc.str, id.var, response.var, treat.var, tf.model, 
 
   return(list(estimate = estimate, selected.EMs = selected.EMs, sigma2.hat = sigma2.hat,
               alpha.hat = alpha.hat, asymp.var.psi = asymp.var.psi,
-              nitr=nitr, lambda.optimal = lambda.selected, data = data.org))
+              nitr=nitr, lambda.optimal = lambda.selected, data = data))
 }
