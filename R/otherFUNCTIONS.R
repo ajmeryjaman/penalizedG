@@ -4,10 +4,12 @@
 #' Function to perform penalized G-estimation for a single value of tuning parameter
 #' @description This function performs penalized G-estimation for a given longitudinal data,
 #' a specific working correlation structure and a single value of the tuning parameter.
-#' @param data A data frame containing the variables in longitudinal format. The name of the
-#' variables ID, exposure and outcome must be "id", "a" and "y", respectively, in the data.
+#' @param data A data frame containing the variables in longitudinal format.
 #' @param wc.str A character string specifying the working correlation structure. The 
 #' following are currently allowed: "independence", "exchangeable", "ar1", and "unstructured".
+#' @param id.var The column name in data that corresponds to the variable id (unique identifier).
+#' @param response.var The column name in data that corresponds to the response variable.
+#' @param treat.var The column name in data that corresponds to the treatment/exposure variable.
 #' @param tf.model A single formula object specifying the covariates of a (linear)
 #' treatment-free model.
 #' @param treat.model A single formula object specifying the covariates of the logistic
@@ -16,16 +18,24 @@
 #' @param maxitr Maximum number of iterations allowed.
 #' @param penalty The penalty type to be used, available options include "SCAD" and "MCP". 
 #' "SCAD" refers to the Smoothly Clipped Absolute Deviation penalty and "MCP" refers to the Minimax Concave Penalty.
-
 #'
 #' @return A list containing the estimates, asymptotic variance etc.
 #' @export
 
-penG <- function(data, wc.str, tf.model, treat.model, lambda, maxitr, penalty){
+penG <- function(data, wc.str, id.var, response.var, treat.var, tf.model, treat.model,
+                 lambda, maxitr, penalty){
+
+  names(data)[names(data)==id.var] <- "id"
+  names(data)[names(data)==treat.var] <- "a"
+  names(data)[names(data)==response.var] <- "y"
+  
+  ## Next we calculate the propensity scores from pooled data
+  treat.mod.formula <- as.formula(paste("a", paste(treat.model, collapse = ""), collapse=""))
+  data$E.a <- predict.glm(glm(treat.mod.formula, family=binomial, data=data), type = "response")
+  
   # n: number of patients
   # p: number of variables in the treatment-free model including the intercept
   # ni, l, a, y, l.mat.split, e: all are list of length n
-  # estimate.current: a vector of length 2*p
 
   n <- length(split(data, data$id))
   dat <- split(data, data$id)
@@ -45,9 +55,9 @@ penG <- function(data, wc.str, tf.model, treat.model, lambda, maxitr, penalty){
   sum4 <- Reduce("+", lapply(1:n, function(i) t(c(a[[i]]-E.a[[i]])*l[[i]])%*%(c(a[[i]])*l[[i]])))# p*p
   sum5 <- Reduce("+", lapply(1:n, function(i) t(c(a[[i]]-E.a[[i]])*l[[i]])%*%y[[i]])) #p*1
   sum6 <- Reduce("+", lapply(1:n, function(i) t(c(a[[i]]-E.a[[i]])*l[[i]])%*%l[[i]])) #p*p
-
-
+  
   ## initial estimate, iteration = 0
+  # estimate.current: a vector of length 2*p
   estimate.current <- solve(cbind(rbind(sum4, sum2), rbind(sum6, sum1)))%*%rbind(sum5, sum3)
   e <- lapply(1:n, function(i)
     y[[i]]-(c(a[[i]])*l[[i]])%*%estimate.current[1:p]-l[[i]]%*%estimate.current[(p+1):(2*p)])
@@ -149,6 +159,12 @@ penG <- function(data, wc.str, tf.model, treat.model, lambda, maxitr, penalty){
     I.psi.hat <- ss4 - t(ss2)%*%solve(ss1)%*%ss2
     B.hat.inv <- solve(sum3.n+n*En.mat[1:p,1:p])
     var.psi.hat <- B.hat.inv%*%I.psi.hat%*%B.hat.inv
+    
+    row.names(estimate.new) <- c(treat.var, paste(treat.var, "*", colnames(l.mat)[-c(1,2)], sep=""),
+                             "Intercept", colnames(l.mat)[-c(1,2)])
+    row.names(var.psi.hat) <- c(treat.var, paste(treat.var, "*", colnames(l.mat)[-c(1,2)], sep=""))
+    colnames(var.psi.hat) <- c(treat.var, paste(treat.var, "*", colnames(l.mat)[-c(1,2)], sep=""))
+    
     return(list(estimate = estimate.new, phi = sigma2.hat, alpha = alpha.hat,
                 asymp.var.psi = var.psi.hat, nitr=itr, error = 0, En.mat = En.mat))
   } else {
